@@ -1,6 +1,6 @@
 # next_connect_middleware_issue
 
-This repo contains the code to reproduce the issue [#]() in [bufbuild/connect-es](https://github.com/bufbuild/connect-es).
+This repo contains the code to reproduce the issue [#749](https://github.com/bufbuild/connect-es/issues/749) in [bufbuild/connect-es](https://github.com/bufbuild/connect-es).
 
 I try to use `connect-web` in the Next.js middleware as node APIs are not available.
 
@@ -8,15 +8,11 @@ In short, the next edge middleware seems to have issues with the `AbortControlle
 
 ## Reproduction
 
-It's as simple as
-
-```bash
-npm run dev
-```
-
-and visiting http://localhost:3000.
-
-Then, view the logs in the terminal.
+1. Clone this repo
+2. Install dependencies: `npm install`
+3. Start server: `npm run dev`
+4. Visit [http://localhost:3000](http://localhost:3000) in browser
+5. Look at the logs in the terminal
 
 ## Implementation
 
