@@ -2,6 +2,8 @@
 
 This repo contains the code to reproduce the issue [#]() in [bufbuild/connect-es](https://github.com/bufbuild/connect-es).
 
+I try to use `connect-web` in the Next.js middleware as node APIs are not available.
+
 In short, the next edge middleware seems to have issues with the `AbortController`. I did not dig deeper yet.
 
 ## Reproduction
