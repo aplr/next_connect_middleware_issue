@@ -1,34 +1,80 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# next_connect_middleware_issue
 
-## Getting Started
+This repo contains the code to reproduce the issue [#]() in [bufbuild/connect-es](https://github.com/bufbuild/connect-es).
 
-First, run the development server:
+In short, the next edge middleware seems to have issues with the `AbortController`. I did not dig deeper yet.
+
+## Reproduction
+
+It's as simple as
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+and visiting http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Then, view the logs in the terminal.
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+## Implementation
 
-## Learn More
+This project was bootstrapped as a Next.js project with the command `npx create-next-app buf-nextjs --use-npm --ts` and all suggested defaults.
 
-To learn more about Next.js, take a look at the following resources:
+The only things modified was adding the connect dependencies, and adding the `middleware.ts`:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+<details>
+<summary>middleware.ts</summary>
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+```ts
+import { NextResponse } from "next/server";
 
-## Deploy on Vercel
+import { createPromiseClient } from "@bufbuild/connect";
+import { createConnectTransport } from "@bufbuild/connect-web";
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+import { ElizaService } from "@buf/connectrpc_eliza.bufbuild_connect-es/connectrpc/eliza/v1/eliza_connect";
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+const transport = createConnectTransport({
+  baseUrl: "https://demo.connectrpc.com",
+});
+
+const client = createPromiseClient(ElizaService, transport);
+
+export const middleware = async () => {
+  const { sentence } = await client.say({ sentence: "Howdy!" });
+
+  return NextResponse.json({ sentence });
+};
+```
+
+</details>
+
+## Expected behavior
+
+I **expect** the middleware to send the request using `connect-web`'s connect transport, which uses the `fetch` api. Therefore I expect it to work also in Next.js middleware, which is based on V8.
+
+## Actual behavior
+
+The following error is thrown:
+
+```
+- error Error [TypeError]: Cannot read properties of undefined (reading 'flags')
+    at setRemoved (file:///app/node_modules/next/dist/compiled/edge-runtime/index.js:1:970334)
+    at removeListenerAt (file:///app/node_modules/next/dist/compiled/edge-runtime/index.js:1:970334)
+    at EventTarget.dispatchEvent (file:///app/node_modules/next/dist/compiled/edge-runtime/index.js:1:970334)
+    at abortSignalAbort (file:///app/node_modules/next/dist/compiled/edge-runtime/index.js:1:970334)
+    at AbortController.abort (file:///app/node_modules/next/dist/compiled/edge-runtime/index.js:1:970334)
+    at done (webpack-internal:///(middleware)/./node_modules/@bufbuild/connect/dist/esm/protocol/run-call.js:103:24)
+    at eval (webpack-internal:///(middleware)/./node_modules/@bufbuild/connect/dist/esm/protocol/run-call.js:33:9)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Object.unary (webpack-internal:///(middleware)/./node_modules/@bufbuild/connect-web/dist/esm/connect-transport.js:89:20)
+    at async Object.eval [as say] (webpack-internal:///(middleware)/./node_modules/@bufbuild/connect/dist/esm/promise-client.js:132:26)
+    at async Object.middleware [as handler] (webpack-internal:///(middleware)/./middleware.ts:18:26)
+    at async adapter (webpack-internal:///(middleware)/./node_modules/next/dist/esm/server/web/adapter.js:170:20)
+    at async runWithTaggedErrors (file:///app/node_modules/next/dist/server/web/sandbox/sandbox.js:98:24)
+    at async DevServer.runMiddleware (file:///app/node_modules/next/dist/server/next-server.js:1013:24)
+    at async DevServer.runMiddleware (file:///app/node_modules/next/dist/server/dev/next-dev-server.js:247:28)
+    at async DevServer.handleCatchallMiddlewareRequest (file:///app/node_modules/next/dist/server/next-server.js:1096:22)
+    at async DevServer.handleRequestImpl (file:///app/node_modules/next/dist/server/base-server.js:647:32) {
+  digest: undefined
+}
+```

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 import { createPromiseClient } from "@bufbuild/connect";
 import { createConnectTransport } from "@bufbuild/connect-web";
@@ -11,12 +11,8 @@ const transport = createConnectTransport({
 
 const client = createPromiseClient(ElizaService, transport);
 
-export const middleware = async (req: NextRequest) => {
-  const { sentence } = await client.say({
-    sentence: "How are you today?",
-  });
+export const middleware = async () => {
+  const { sentence } = await client.say({ sentence: "Howdy!" });
 
-  return NextResponse.json({
-    sentence,
-  });
+  return NextResponse.json({ sentence });
 };
